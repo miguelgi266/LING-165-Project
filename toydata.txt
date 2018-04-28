@@ -1,0 +1,13 @@
+<s> sprite is a type of soda </s>
+<s> coke is a type of soda </s>
+<s> nessy is the biggest monster </s>
+<s> cake is good </s>
+<s> war is bad </s>
+<s> i like to make up examples </s>
+<s> who wants to ski today </s>
+<s> what do i do now </s>
+<s> jobs are good </s>
+<s> unemployment is bad </s>
+<s> war in not a type of cake </s>
+<s> this is an example </s>
+<s> this is an additional example </s>
