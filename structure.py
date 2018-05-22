@@ -24,6 +24,5 @@ for flnm in hnames:
 	struct =  get_blueprint('haikus/'+flnm)
 	if struct != None:
 		templates.append(struct)
-		if len(templates[-1]['lengths'])!=3:
 
 cPickle.dump(templates, open('templates.pickle','w'))
