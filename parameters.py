@@ -5,6 +5,7 @@ def cos_msr(a,b):
 	return a.dot(b)/(np.linalg.norm(a)*np.linalg.norm(b))
 
 d = nltk.corpus.cmudict.dict()
+#code for makeshift and nysl taken from 
 def makeshift(word):
         count = 0.0
         vowels = 'aeiouy'
@@ -44,9 +45,6 @@ def open_proc(flnm):
 	tgsnt =[]
 	for i in range(len(origsents)):
                 tgsnt+=[(word.lower(),tag) for word,tag in nltk.pos_tag(origsents[i])]
-	
-	for x in tgsnt[:100]:
-		print x
 	words = sorted(list(set([pair[0] for pair in tgsnt])))
 	tags = sorted(list(set([pair[1] for pair in tgsnt])))
 	w2n = {words[i]:i for i in range(len(words))} 
@@ -138,8 +136,6 @@ def best_k(origsents,sents,doc,w2n):
 def reduced_rep(sents):
         tgsnt =[]
         for sent in sents:
-		print sent
-		print '-----------'
 		temp = [pair[1] for pair in pos_tagger.tag(sent)]
 #		print temp
                 tgsnt.append(zip([tok.lower() for tok in sent],temp))
