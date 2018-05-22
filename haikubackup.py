@@ -48,7 +48,7 @@ def generate_sentence(tagseq,syllseq,T,clust,s,t2n,n2w,pos):
 	ObjF = scip.quicksum(simvec[j]*x[i,j] for i in xrange(max_len) for j in xrange(n_terms))
 	ObjF += scip.quicksum(T[j,k]*z[i,j,k] for i in xrange(max_len-1) for j in xrange(n_clusts) for k in xrange(n_clusts)) 
 	ObjF -= scip.quicksum(dup[j] for j in xrange(n_terms))
-	#ObjF = scip.quicksum(simvec[j]*x[i,j] for i in xrange(max_len) for j in xrange(n_terms)) +scip.quicksum(T[j,k]*z[i,j,k] for i in xrange(max_len-1) for j in xrange(n_clusts) for k in xrange(n_clusts)) - scip.quicksum(dup[j] for j in xrange(n_terms))
+#	ObjF = scip.quicksum(simvec[j]*x[i,j] for i in xrange(max_len) for j in xrange(n_terms)) +scip.quicksum(T[j,k]*z[i,j,k] for i in xrange(max_len-1) for j in xrange(n_clusts) for k in xrange(n_clusts)) - scip.quicksum(dup[j] for j in xrange(n_terms))
 
 	model.setObjective(ObjF,'maximize')
 #	model.hideOutput()

@@ -37,16 +37,13 @@ def nsyl(word):
 
 def open_proc(flnm):
 	with open(flnm,'r') as f:
-		txt = f.read()
+		txt = f.read().decode('utf8')
 	sents = [nltk.word_tokenize(sent) for sent in nltk.sent_tokenize(txt)]
-#	sents = [[tok for tok in sent if tok not in ['``','"']] for sent in sents]
 	origsents = sents[:]
 	sents = [[tok.lower() for tok in sent] for sent in sents]
 	tgsnt =[]
 	for i in range(len(origsents)):
-#                tgsnt+=zip(sents[i],[pair[1] for pair in nltk.pos_tag(origsents[i])])
                 tgsnt+=[(word.lower(),tag) for word,tag in nltk.pos_tag(origsents[i])]
-#		tgsnt += [(word.lower(),tag) for word,tag in pos_tagger.tag(origsents[i])]
 	
 	for x in tgsnt[:100]:
 		print x
@@ -164,9 +161,11 @@ def reduced_rep(sents):
 
 
 
-doc = ['earth'] #['spring','leaves']
+doc =  ['trees','plants']
+#doc = ['mother','picture']
+#doc = ['shoes']
 
-flnm = 'texts/joyce.txt'
+flnm = 'texts/corpus.txt'
 origsents,sents,tagpairs,words,tags,w2n,t2n = open_proc(flnm)
 sents = best_k(origsents,sents,doc,w2n)
 del tagpairs,words,tags,w2n,t2n 

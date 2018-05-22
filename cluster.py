@@ -14,7 +14,7 @@ print c
 T2 = u[:,:c].dot(np.diag(s[:c]))
 del u,s,v
 
-n_clust = 75#T.shape[0]
+n_clust = 50#T.shape[0]
 dist,clust = scipy.cluster.vq.kmeans2(T2,n_clust,iter = 15,minit = 'points')
 #kclusterer = nltk.cluster.kmeans.KMeansClusterer(n_clust,distance = l1,repeats = 20)
 #clust = kclusterer.cluster(T2)
