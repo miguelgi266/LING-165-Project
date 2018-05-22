@@ -7,6 +7,6 @@ First run seqtagger.py to obtain the trained sequential backoff tagger that will
 
 Then run structure.py. This should create a pickle file containing a list of 'templates' as described in the paper
 
-Aterwards, run parameters.py 
+Aterwards, run parameters.py to generate the parameters necessary to run the model
 
-Lastly, run fullhaiku.py this should display 3 lines resembling a haiku (at the end of execution)
+Lastly, run fullhaiku.py this should print the haiku
