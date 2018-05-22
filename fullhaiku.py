@@ -13,7 +13,7 @@ def rand_choice(seq):
 def generate_sentence(tagseq,syllseq,T,s,t2n,n2w,pos):
 	max_len = len(tagseq)
 	n_terms, ntags = pos.shape
-        print 'nterms: %d, n_tags: %d' %(n_terms,ntags)
+ #       print 'nterms: %d, n_tags: %d' %(n_terms,ntags)
 	w2n = {v:u for u,v in n2w.items()}
 	n2t = {v:u for u,v in t2n.items()}
 	words = ['mountain']
@@ -26,13 +26,13 @@ def generate_sentence(tagseq,syllseq,T,s,t2n,n2w,pos):
 	simvec = q2k.dot(simvec)
 	model = scip.Model()#created IP model instance
 	dup,x,z = var_init(model,max_len,n_terms)#initialize variables
-	print 'setting constraints'
+#	print 'setting constraints'
 	struct_cons(model,dup,x,z,s,syllseq,pos,t2n,tagseq,n2w)#set structural constraints
 	include_words(model,x,words,w2n)	
 
 
 
-	print 'setting objF'
+#	print 'setting objF'
 
 	### define objective function and optimize
 	ObjF = scip.quicksum(simvec[j]*x[i,j] for i in xrange(max_len) for j in xrange(n_terms))
@@ -40,8 +40,8 @@ def generate_sentence(tagseq,syllseq,T,s,t2n,n2w,pos):
 	ObjF -= 4*scip.quicksum(dup[j] for j in xrange(n_terms))
 
 	model.setObjective(ObjF,'maximize')
-#	model.hideOutput()
-	print 'optimizing'
+	model.hideOutput()
+#	print 'optimizing'
 	model.optimize()
 
 	#print solution
@@ -94,7 +94,7 @@ def struct_cons(model,dup,x,z,s,syllseq,pos,t2n,tagseq,n2w):
 	for j in xrange(n_terms):
 		model.addCons(dup[j] >=  scip.quicksum(rcp*x[i,j] for i in range(max_len))-rcp)
 
-	print 're-added	syllable constraints'				
+#	print 're-added	syllable constraints'				
 	#syllabic constraints for stanzas
 	model.addCons(scip.quicksum(s[j]*x[i,j] for i in range(0,syllseq[0]) for j in range(n_terms)) == 5)
 	model.addCons(scip.quicksum(s[j]*x[i,j] for i in range(syllseq[0],syllseq[0]+syllseq[1]) for j in range(n_terms)) == 7)
@@ -138,7 +138,7 @@ with open('templates.pickle','rb') as f:
 	seq = np.random.choice(cPickle.load(f))
 #for i in range(len(seq['tags'])): 
 #	if seq['tags'][i] == 'NNP': seq['tags'][i] = 'NN'
-print seq
+#print seq
 s = np.load('s.npy')
 pos = np.load('pos.npy')
 T = np.load('T.npy')

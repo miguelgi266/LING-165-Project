@@ -157,11 +157,11 @@ def reduced_rep(sents):
 
 
 
-doc =  ['trees','plants']
+doc =  ['mountain']
 #doc = ['mother','picture']
 #doc = ['shoes']
 
-flnm = 'texts/corpus.txt'
+flnm = 'texts/outings.txt'
 origsents,sents,tagpairs,words,tags,w2n,t2n = open_proc(flnm)
 sents = best_k(origsents,sents,doc,w2n)
 del tagpairs,words,tags,w2n,t2n 
