@@ -17,7 +17,7 @@ tagger = nltk.UnigramTagger(train_sents, backoff = tagger)
 tagger = nltk.BigramTagger(train_sents,backoff = tagger)
 tagger = nltk.TrigramTagger(train_sents,backoff = tagger)
 
-#cPickle.dump(tagger,open('pos_tagger.pickle','w'))
+cPickle.dump(tagger,open('pos_tagger.pickle','w'))
 
 
 print tagger.evaluate(treebank_test)
