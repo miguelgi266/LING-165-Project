@@ -127,7 +127,7 @@ def best_k(origsents,sents,doc,w2n):
 	for idx in scores:
 		i += 1
 		vl += sents[idx]
-		if len(set(vl)) >= 200:
+		if len(set(vl)) >= 150:
 			break
 
 	sents =   [ origsents[idx] for idx in scores[:i]]

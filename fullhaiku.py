@@ -1,161 +1,156 @@
+import pyscipopt, cPickle
 import numpy as np
-import pyscipopt as scip
-import cPickle
-import time
-
-def rand_choice(seq):
-	idx = np.random.randint(len(seq))
-	return seq[idx]
-#pos k for word j 
-#x location i word j
 
 
-def generate_sentence(tagseq,syllseq,T,s,t2n,n2w,pos):
-	max_len = len(tagseq)
-	n_terms, ntags = pos.shape
- #       print 'nterms: %d, n_tags: %d' %(n_terms,ntags)
-	w2n = {v:u for u,v in n2w.items()}
-	n2t = {v:u for u,v in t2n.items()}
-	words = ['mountain']
-	q2k = np.load('q2k.npy')
-	simvec = np.zeros(n_terms)
-	for word in words:
-        	simvec[w2n[word]]+=1
-	simvec = simvec.dot(q2k)
-	simvec = simvec/np.linalg.norm(simvec)
-	simvec = q2k.dot(simvec)
-	model = scip.Model()#created IP model instance
-	dup,x,z = var_init(model,max_len,n_terms)#initialize variables
-#	print 'setting constraints'
-	struct_cons(model,dup,x,z,s,syllseq,pos,t2n,tagseq,n2w)#set structural constraints
-	include_words(model,x,words,w2n)	
+class haikugenerator(pyscipopt.Model):
+	def __init__(self,templates_f,T_f,s_f,t2n_f,w2n_f, pos_f,q2k_f,seed = None):
+		super(haikugenerator,self).__init__()
+		self.read_params(T_f,s_f,t2n_f,w2n_f, pos_f,q2k_f)
+		self.choose_template(templates_f,seed)
 
 
+	def read_params(self,T_f,s_f,t2n_f,w2n_f, pos_f,q2k_f):
+		T = np.load(T_f)
+		self.T = T/(T.sum(axis = 1, keepdims = True) +(T.sum(axis = 1, keepdims = True) == 0) )
+		self.s = np.load(s_f)
+		self.pos = np.load(pos_f)
+		self.q2k = np.load(q2k_f)	
+		self.t2n = cPickle.load(open(t2n_f,'rb'))
+		self.w2n = cPickle.load(open(w2n_f,'rb'))
+		
+	def choose_template(self,templates_f,seed):
+		np.random.seed(seed)
+		template = np.random.choice(cPickle.load(open(templates_f,'rb')))
+		seq_num = template['lengths']
+		self.n1 = seq_num[0]
+		self.n2 = seq_num[0]+seq_num[1]
+		self.tagseq = template['tags']
+		print self.n1, self.n2, self.tagseq
 
-#	print 'setting objF'
-
-	### define objective function and optimize
-	ObjF = scip.quicksum(simvec[j]*x[i,j] for i in xrange(max_len) for j in xrange(n_terms))
-	ObjF += 4*scip.quicksum(T[j,k]*z[i,j,k] for i in xrange(max_len-1) for j in xrange(n_terms) for k in xrange(n_terms)) 
-	ObjF -= 4*scip.quicksum(dup[j] for j in xrange(n_terms))
-
-	model.setObjective(ObjF,'maximize')
-	model.hideOutput()
-#	print 'optimizing'
-	model.optimize()
-
-	#print solution
-	print_haiku(model,x,n2w,syllseq) 
-	exit()
-#	print 'done'
+	def set_theme(self,q_list):
+		n_terms = self.pos.shape[0]
+		self.simvec = np.zeros(n_terms)
+		for word in q_list:
+			self.simvec[self.w2n[word]]+=1
+		self.simvec = self.simvec.dot(self.q2k)
+		self.simvec = self.simvec/np.linalg.norm(self.simvec)
+		self.simvec = self.q2k.dot(self.simvec)
+			
+	def embed(self,w_list = []):
+		h_len = self.x.shape[0]
+		for word in w_list:
+			self.addCons(pyscipopt.quicksum(self.x[i,self.w2n[word]] for i in xrange(h_len)) >= 1)
 
 
-def var_init(model,max_len,n_terms):
-	print 'number of variables:',n_terms*(n_terms*(max_len-1)+max_len+1)
-#	print 'should not exceed:',max_len*200+(max_len-1)*200*200
-        x = np.empty((max_len,n_terms),dtype ='object')# scip.scip.Variable) #ith position corresponds to word j
-        z = np.empty((max_len-1,n_terms,n_terms),dtype ='object')# scip.scip.Variable)
-	dup = np.empty(n_terms, dtype = 'object')
-	for i in xrange(n_terms):
-		dup[i] = model.addVar(vtype = 'B') 
-	for i in xrange(max_len):
+	def init_vars(self):
+		n_terms, n_tags = self.pos.shape
+		h_len = len(self.tagseq)
+        	self.x = np.empty((h_len,n_terms),dtype ='object')
+        	self.z = np.empty((h_len-1,n_terms,n_terms),dtype ='object')
+        	self.dup = np.empty(n_terms, dtype = 'object')
+		for i in xrange(n_terms):
+			self.dup[i] = self.addVar(vtype = 'B')
+
+		for i in xrange(h_len-1):
+			for j in xrange(n_terms):
+				self.x[i,j] = self.addVar(vtype = 'B')
+				for k in xrange(n_terms):
+					self.z[i,j,k] = self.addVar(vtype = 'B')
+
 		for j in xrange(n_terms):
-			x[i,j] = model.addVar(vtype = 'B')
-	for i in xrange(max_len-1):
+			self.x[h_len-1,j] = self.addVar(vtype = 'B')
+
+
+
+	def struct_cons(self):
+		n_terms, n_tags = self.pos.shape
+		h_len = len(self.tagseq)
+
+		#Each position in the haiku must be assigned exactly one word
+		for i in xrange(h_len):
+			self.addCons(pyscipopt.quicksum(self.x[i,j] for j in xrange(n_terms)) ==1)
+
+		#each word must belong to POS indicated in the template
+		for i in xrange(h_len):
+			tg_idx = self.t2n[self.tagseq[i]]
+			for j in xrange(n_terms):
+				if self.pos[j,tg_idx] == 0:
+					self.addCons(self.x[i,j] == 0)
+
+		#stanzas must follow 5-7-5 structure
+		self.addCons(pyscipopt.quicksum(self.s[j]*self.x[i,j] for i in range(0,self.n1) for j in range(n_terms)) == 5)
+		self.addCons(pyscipopt.quicksum(self.s[j]*self.x[i,j] for i in range(self.n1,self.n2) for j in range(n_terms)) == 7)
+		self.addCons(pyscipopt.quicksum(self.s[j]*self.x[i,j] for i in range(self.n2,h_len) for j in range(n_terms)) == 5)
+
+
+		#upper bound on z ensures that it indicates whether xij = xi+1k = 1 in objective function
+                for i in xrange(h_len-1):
+                        for j in xrange(n_terms):
+                                for k in xrange(n_terms):
+                                        self.addCons(self.x[i,j] >= self.z[i,j,k])
+                                        self.addCons(self.x[i+1,k] >= self.z[i,j,k])
+		
+		#lower bound on w_j ensures it is 1 if word j appears 2 or more times in resultant haiku
+		rcp = 1.0/float(h_len) #reciprocal scaling factor
 		for j in xrange(n_terms):
-			for k in xrange(n_terms):
-				z[i,j,k] = model.addVar(vtype = 'B')
+			self.addCons(self.dup[j] >=  pyscipopt.quicksum(rcp*self.x[i,j] for i in xrange(h_len))-rcp)
+
+		
+		#ad-hoc data preprocessing
+	        for tok in ['\'','`','s']:
+			if tok in self.w2n:
+				for i in xrange(h_len):
+					self.addCons(self.x[i,self.w2n[tok]]==0)
 
 
-	return dup,x,z 
-
-
-
-def struct_cons(model,dup,x,z,s,syllseq,pos,t2n,tagseq,n2w):	
-	max_len, n_terms = x.shape
-
-	#Each position in the haiku must be assigned exactly one word
-        for i in xrange(max_len):
-                model.addCons(scip.quicksum(x[i,j] for j in xrange(n_terms)) ==1)
-
-	#each word must belong to POS indicated
-	for i in xrange(max_len):
-		tg_idx = t2n[tagseq[i]]
-		for j in xrange(n_terms):
-			if pos[j,tg_idx] == 0:
-				model.addCons(x[i,j] == 0)
-	
-	for i in xrange(max_len-1):
-		for j in xrange(n_terms):
-			for k in xrange(n_terms):
-				model.addCons(x[i,j] >= z[i,j,k])
-				model.addCons(x[i+1,k] >= z[i,j,k])
-	rcp = 1.0/(max_len+0.0)
-	for j in xrange(n_terms):
-		model.addCons(dup[j] >=  scip.quicksum(rcp*x[i,j] for i in range(max_len))-rcp)
-
-#	print 're-added	syllable constraints'				
-	#syllabic constraints for stanzas
-	model.addCons(scip.quicksum(s[j]*x[i,j] for i in range(0,syllseq[0]) for j in range(n_terms)) == 5)
-	model.addCons(scip.quicksum(s[j]*x[i,j] for i in range(syllseq[0],syllseq[0]+syllseq[1]) for j in range(n_terms)) == 7)
-	model.addCons(scip.quicksum(s[j]*x[i,j] for i in range(syllseq[0]+syllseq[1],max_len) for j in range(n_terms)) == 5)
-
-def include_words(model,x,words,w2n):
-	max_len = x.shape[0]
-#	model.addCons(scip.quicksum(x[i,w2n['any']] for i in range(max_len)) >= 1)
-#	pass
-#	max_len = x.shape[0]
-#	for word in words:
-#		model.addCons(scip.quicksum(x[i,w2n[word]] for i in range(max_len)) >= 1)	
-
-	for tok in ['\'','`','s']:
-		if tok in w2n:
-			for i in xrange(max_len):
-				model.addCons(x[i,w2n[tok]]==0)
+	def print_haiku(self):
+		h_len,n_terms = self.x.shape
+		sentence = []
+		for i in xrange(h_len):
+			for j in xrange(n_terms):
+				if self.getVal(self.x[i,j])!=0:
+					sentence.append(j)
+					break
+		n2w = {v:u for u,v in self.w2n.items()}
+	        print ' '.join(n2w[k] for k in sentence[0:self.n1])
+	        print ' '.join(n2w[k] for k in sentence[self.n1:self.n2])
+	        print ' '.join(n2w[k] for k in sentence[self.n2:])
 
 
 
-def print_haiku(model,x,n2w,syllseq):
-	max_len,n_terms = x.shape
-	sentence = []
-        for i in xrange(max_len):
-                for j in xrange(n_terms):
-                        if model.getVal(x[i,j])!=0:
-#                                print 'position %d, word %s' %(i,n2w[j])
-                                sentence.append(j)
-				break
+	def setObj(self,a,b,c):
+		h_len, n_terms = self.x.shape
+		ObjF = a*pyscipopt.quicksum(self.simvec[j]*self.x[i,j] for i in xrange(h_len) for j in xrange(n_terms))
+		ObjF += b*pyscipopt.quicksum(self.T[j,k]*self.z[i,j,k] for i in xrange(h_len-1) for j in xrange(n_terms) for k in xrange(n_terms))
+		ObjF -= c*pyscipopt.quicksum(self.dup[j] for j in xrange(n_terms))
+        	self.setObjective(ObjF,'maximize')
 
-#       print ' '.join([n2w[k] for k in sentence])
-        print ' '.join(n2w[k] for k in sentence[0:syllseq[0]])
-        print ' '.join(n2w[k] for k in sentence[syllseq[0]:syllseq[0]+syllseq[1]])
-        print ' '.join(n2w[k] for k in sentence[syllseq[0]+syllseq[1]:])
 
-#np.random.seed(6)
-#x =  27#np.random.randint(50)
-#print x
-#np.random.seed(x)#18 works too
-with open('templates.pickle','rb') as f:
-	seq = np.random.choice(cPickle.load(f))
-#for i in range(len(seq['tags'])): 
-#	if seq['tags'][i] == 'NNP': seq['tags'][i] = 'NN'
-#print seq
-s = np.load('s.npy')
-pos = np.load('pos.npy')
-T = np.load('T.npy')
-T = T/(T.sum(axis = 1, keepdims = True) +(T.sum(axis = 1, keepdims = True) == 0) ) #normalize rows
-with open('t2n.pickle','rb') as f:
-	t2n= cPickle.load(f)
-with open('w2n.pickle','rb') as f:
-	w2n = cPickle.load(f)
-n2w = {v:u for u,v in w2n.items()}
-#print 'vocab size:', len(w2n)
-syllseq = seq['lengths']
-tagseq =  seq['tags']
-n2t = {u:v for v,u in t2n.items()}
-#for i in range(pos.shape[0]):
-#	for j in range(pos.shape[1]):
-#		print n2w[i],n2t[j],pos[i,j]
+	def init_model(self,q_list,w_list,a = 1,b = 4,c = 3,verbose = True):
+		self.init_vars()
+		self.struct_cons()
+		self.set_theme(q_list)
+		self.embed(w_list)	
+		self.setObj(a,b,c)
+		if verbose == False:
+			self.hideOutput()
 
-#exit()
-generate_sentence(tagseq,syllseq,T,s,t2n,n2w,pos)
+	def solve_model(self):
+		self.optimize()
+		self.print_haiku()
+
+
+templates_f='templates.pickle';s_f = 's.npy';pos_f = 'pos.npy'
+T_f = 'T.npy'; t2n_f = 't2n.pickle'; w2n_f = 'w2n.pickle'; q2k_f = 'q2k.npy'
+
+
+
+
+mod = haikugenerator(templates_f,T_f,s_f,t2n_f,w2n_f, pos_f,q2k_f)
+
+mod.init_model(['meadow'],['meadow'])
+mod.solve_model()
+
+
+
 
