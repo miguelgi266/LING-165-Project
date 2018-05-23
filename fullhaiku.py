@@ -146,7 +146,7 @@ T_f = 'T.npy'; t2n_f = 't2n.pickle'; w2n_f = 'w2n.pickle'; q2k_f = 'q2k.npy'
 
 
 
-mod = haikugenerator(templates_f,T_f,s_f,t2n_f,w2n_f, pos_f,q2k_f)
+mod = haikugenerator(templates_f,T_f,s_f,t2n_f,w2n_f, pos_f,q2k_f, seed = 1)
 
 mod.init_model(['meadow'],['meadow'])
 mod.solve_model()
